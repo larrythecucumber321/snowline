@@ -1,0 +1,42 @@
+name: Refresh snow snapshot
+
+# Rebuilds the trail + Sentinel-2 imagery snapshot every two days. The commit
+# back to main triggers Vercel's GitHub integration to redeploy production.
+on:
+  schedule:
+    - cron: "0 13 */2 * *" # ~6 AM Pacific, every other day
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build snapshot
+        env:
+          CDSE_CLIENT_ID: ${{ secrets.CDSE_CLIENT_ID }}
+          CDSE_CLIENT_SECRET: ${{ secrets.CDSE_CLIENT_SECRET }}
+        run: pnpm snapshot:ci
+      - name: Commit refreshed snapshot
+        run: |
+          git config user.name "snowline-bot"
+          git config user.email "snowline-bot@users.noreply.github.com"
+          git add public/trails-snapshot.json public/overlay
+          if git diff --cached --quiet; then
+            echo "Snapshot unchanged — nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore: refresh snow snapshot ($(date -u +%Y-%m-%d))"
+          git push
