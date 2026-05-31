@@ -1,7 +1,7 @@
 name: Refresh snow snapshot
 
-# Rebuilds the trail + Sentinel-2 imagery snapshot every two days. The commit
-# back to main triggers Vercel's GitHub integration to redeploy production.
+# Rebuilds the trail + Sentinel-2 imagery snapshot every two days and deploys
+# the result to Vercel production.
 on:
   schedule:
     - cron: "0 13 */2 * *" # ~6 AM Pacific, every other day
@@ -10,10 +10,14 @@ on:
 permissions:
   contents: write
 
+env:
+  VERCEL_ORG_ID: team_FXGMD3qvPnxoiZbDWGOVKAL5
+  VERCEL_PROJECT_ID: prj_ZuqYtOOsjNIGHN4YLTQkJR6Xyzy7
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,11 +28,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
       - name: Build snapshot
         env:
           CDSE_CLIENT_ID: ${{ secrets.CDSE_CLIENT_ID }}
           CDSE_CLIENT_SECRET: ${{ secrets.CDSE_CLIENT_SECRET }}
         run: pnpm snapshot:ci
+
       - name: Commit refreshed snapshot
         run: |
           git config user.name "snowline-bot"
@@ -36,7 +42,15 @@ jobs:
           git add public/trails-snapshot.json public/overlay
           if git diff --cached --quiet; then
             echo "Snapshot unchanged — nothing to commit."
-            exit 0
+          else
+            git commit -m "chore: refresh snow snapshot ($(date -u +%Y-%m-%d))"
+            git push
           fi
-          git commit -m "chore: refresh snow snapshot ($(date -u +%Y-%m-%d))"
-          git push
+
+      - name: Deploy to Vercel production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx --yes vercel@latest pull --yes --environment=production --token=$VERCEL_TOKEN
+          npx --yes vercel@latest build --prod --token=$VERCEL_TOKEN
+          npx --yes vercel@latest deploy --prebuilt --prod --token=$VERCEL_TOKEN
