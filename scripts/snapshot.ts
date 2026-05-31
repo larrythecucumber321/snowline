@@ -3,7 +3,7 @@ import path from "path";
 import { buildTrailsResponse } from "../src/lib/build-trails";
 import { fetchTileImage, hasCreds } from "../src/lib/cdse";
 import { TRUECOLOR_EVALSCRIPT } from "../src/lib/evalscript";
-import { tiles, OVERLAY_PX, LOOKBACK_DAYS } from "../src/lib/region";
+import { tiles, OVERLAY_PX, TRUECOLOR_LOOKBACK_DAYS } from "../src/lib/region";
 
 // Regenerate everything production serves statically: the trail + snow
 // snapshot and the satellite imagery tiles.
@@ -30,7 +30,9 @@ async function main() {
     await fs.mkdir(dir, { recursive: true });
     const region = tiles();
     const toIso = new Date().toISOString();
-    const fromIso = new Date(Date.now() - LOOKBACK_DAYS * 864e5).toISOString();
+    const fromIso = new Date(
+      Date.now() - TRUECOLOR_LOOKBACK_DAYS * 864e5,
+    ).toISOString();
     let done = 0;
     await Promise.all(
       region.map(async (t, i) => {

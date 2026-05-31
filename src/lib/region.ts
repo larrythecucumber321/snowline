@@ -17,6 +17,9 @@ export const REGION_BBOX: [number, number, number, number] = [
 
 // Sentinel-2 lookback window and per-tile raster size.
 export const LOOKBACK_DAYS = 14;
+// Imagery is rebuilt off a longer window so the photo overlay can still find a
+// non-cloudy pixel for tiles where the recent acquisitions were all clouded.
+export const TRUECOLOR_LOOKBACK_DAYS = 30;
 export const TILE_DEG = 0.37;
 export const TILE_PX = 512;
 export const OVERLAY_PX = 768; // resolution of the precomputed imagery tiles

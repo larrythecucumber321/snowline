@@ -37,10 +37,11 @@ function evaluatePixel(samples) {
   return [255];
 }`;
 
-// True-colour RGB imagery for the photo overlay. Composites the most recent
-// cloud-free pixel per location (skipping cloud/shadow via the SCL band) so the
-// overlay shows real ground, not cloud tops mistaken for snow. RGB (not RGBA)
-// so tiles can be served as compact JPEGs; gaps fall back to a neutral grey.
+// True-colour RGB imagery for the photo overlay. Two-pass composite:
+//   1. prefer a recent cloud-free pixel (skipping cloud / shadow via SCL),
+//   2. fall back to any pixel with data — showing cloud is more useful than a
+//      gray swath where every recent scene was cloudy.
+// Only when there's no data at all do we return a neutral grey.
 export const TRUECOLOR_EVALSCRIPT = `//VERSION=3
 function setup() {
   return {
@@ -56,6 +57,10 @@ function evaluatePixel(samples) {
     var scl = s.SCL;
     if (scl === 0 || scl === 1 || scl === 3 || scl === 8 || scl === 9 || scl === 10) continue;
     return [2.8 * s.B04, 2.8 * s.B03, 2.8 * s.B02];
+  }
+  for (var j = 0; j < samples.length; j++) {
+    var t = samples[j];
+    if (t && t.dataMask === 1) return [2.8 * t.B04, 2.8 * t.B03, 2.8 * t.B02];
   }
   return [0.62, 0.64, 0.66];
 }`;
